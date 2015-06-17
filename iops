@@ -173,7 +173,7 @@ def greek(value, precision=0, prefix=None):
         return fmt % (float(value)/factor, suffix)
 
 
-def iops(dev, blocksize=512, t=2):
+def iops(dev, blocksize=4096, t=2):
     """measure input/output operations per second
     Perform random 512b aligned reads of blocksize bytes on fh for t seconds
     and print a stats line
@@ -182,21 +182,20 @@ def iops(dev, blocksize=512, t=2):
 
     fh = open(dev, 'r')
     count = 0
+    maxRandint = mediasize(dev) - blocksize # need at least one block left
     start = time.time()
     while time.time() < start+t:
         count += 1
-        pos = random.randint(0, mediasize(dev) - blocksize) # need at least one block left
+        pos = random.randint(0, maxRandint)
         #pos &= ~0x1ff   # freebsd8: pos needs 512B sector alignment
         pos &= ~(blocksize-1)   # sector alignment at blocksize
         fh.seek(pos)
         blockdata = fh.read(blocksize)
     end = time.time()
 
-    t = end - start
-
     fh.close()
 
-    return count/t
+    return count/(end - start)
 
 
 if __name__ == '__main__':
@@ -218,7 +217,7 @@ if __name__ == '__main__':
             dev = arg
 
     # run benchmark
-    blocksize = 512
+    blocksize = 4096
     try:
         print "%s, %sB, %d threads:" % (dev, greek(mediasize(dev), 2, 'si'), num_threads)
         _iops = num_threads+1 # initial loop
